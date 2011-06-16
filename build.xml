@@ -1,0 +1,24 @@
+<project name="Ant Builder" default="jar" basedir=".">
+	<property name="hadoop" value="/usr/lib/hadoop"/>
+	<property name="classpath" value="${hadoop}/hadoop-core.jar"/>
+	
+	<target name="clean">
+		<delete includeemptydirs="true">
+			<fileset dir="bin" includes="**/*"/>
+		</delete>
+	</target>
+	
+	<target name="compile" depends="clean">
+		<javac srcdir="src" classpath="${classpath}" destdir="bin" optimize="on" debug="true" debugLevel="lines,vars,source" />
+	</target>
+	
+	<target name="jar" depends="compile">
+		<jar jarfile="examples.jar"  basedir="bin" includes="**" index="true">
+			<manifest>
+				<attribute name="Built-By" value="Michael Cutler (m@cotdp.com)"/>
+				<attribute name="Sealed" value="false" />
+			</manifest>
+		</jar>
+	</target>
+	
+</project>
