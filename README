@@ -1,0 +1,29 @@
+
+HADOOP
+======
+
+hadoop fs -put twitter twitter
+hadoop fs -ls
+
+hadoop jar examples.jar example.twitter.ParseHashtags twitter hashtags
+
+hadoop fs -ls hashtags
+hadoop fs -rmr hashtags/_logs hashtags/_SUCCESS
+
+hadoop fs -cat hashtags/part-r-00000 | head -n 20
+
+
+HIVE
+====
+
+SHOW TABLES;
+
+CREATE TABLE hashtags ( hashtag STRING, freq INT ) ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' STORED AS TEXTFILE;
+
+DESCRIBE hashtags;
+
+LOAD DATA INPATH "hashtags" INTO TABLE hashtags;
+
+SELECT * FROM hashtags LIMIT 20;
+
+SELECT freq,hashtag FROM hashtags SORT BY freq DESC LIMIT 20;

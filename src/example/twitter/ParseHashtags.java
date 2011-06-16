@@ -5,10 +5,12 @@ import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
@@ -22,15 +24,13 @@ import org.json.JSONObject;
  */
 public class ParseHashtags implements Tool
 {
-	Configuration conf = null;
-	
 	/**
 	 * 
 	 */
-	static class MyMapper extends Mapper<LongWritable,Text,Text,LongWritable>
+	static class MyMapper extends Mapper<LongWritable,Text,Text,IntWritable>
 	{
 		@Override
-	    public void map( LongWritable key, Text value, Mapper<LongWritable,Text,Text,LongWritable>.Context context) throws IOException, InterruptedException
+	    public void map( LongWritable key, Text value, Mapper<LongWritable,Text,Text,IntWritable>.Context context) throws IOException, InterruptedException
 	    {
 	        try
 	        {
@@ -51,11 +51,11 @@ public class ParseHashtags implements Tool
 	        					String hashtag = tag.getString("text");
 	        					hashtag = hashtag.toLowerCase();
 	        					// Include multiple instances
-	        					long count = 1;
+	        					int count = 1;
 	        					if ( tag.has("indices") )
 	        						count = tag.getJSONArray("indices").length();
 	        					// Write the output
-	        					context.write(new Text(hashtag), new LongWritable(count));
+	        					context.write(new Text(hashtag), new IntWritable(count));
 	        					context.getCounter("ParseHashtags", "Hashtags discovered").increment(1);
 	        				}
 	        			}
@@ -67,6 +67,21 @@ public class ParseHashtags implements Tool
 	        catch ( Exception ignore ) {}
 	    }
 		
+	}
+	
+	/**
+	 * 
+	 */
+	static class MyReducer extends Reducer<Text,IntWritable,Text,IntWritable>
+	{
+		@Override
+		public void reduce(Text key, Iterable<IntWritable> values, Reducer<Text,IntWritable,Text,IntWritable>.Context context) throws IOException, InterruptedException
+		{
+			int sum = 0;
+			for (IntWritable val : values)
+				sum += val.get();
+			context.write(key, new IntWritable(sum));
+		}
 	}
 	
     /**
@@ -90,13 +105,14 @@ public class ParseHashtags implements Tool
 		job.setJobName(this.getClass().getName());
 		job.setJarByClass(MyMapper.class);
 		job.setMapperClass(MyMapper.class);
+		job.setReducerClass(MyReducer.class);
+		
+		//
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(IntWritable.class);
 		
 		//
 		job.setInputFormatClass(TextInputFormat.class);
-		job.setMapOutputKeyClass(Text.class);
-		job.setMapOutputValueClass(LongWritable.class);
-		
-		//
 		FileInputFormat.setInputPaths(job, new Path(inputPath));
 		FileOutputFormat.setOutputPath(job, new Path(outputPath));
 		
@@ -114,6 +130,8 @@ public class ParseHashtags implements Tool
         ToolRunner.run(new ParseHashtags(), args);
 	}
 
+	Configuration conf = null;
+		
 	@Override
 	public Configuration getConf()
 	{
